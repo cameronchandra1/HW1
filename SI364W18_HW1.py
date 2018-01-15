@@ -5,19 +5,87 @@
 #################################
 
 ## List below here, in a comment/comments, the people you worked with on this assignment AND any resources you used to find code (50 point deduction for not doing so). If none, write "None".
-
+# Resources:
+# flask.pocoo.org => Flask website
+# https://affiliate.itunes.apple.com/resources/documentation/itunes-store-web-service-search-api/#searching => Itunes API documentation
+# http://docs.python-requests.org/en/master/api/ => requests documentation
+# https://darksky.net/dev/docs => darksky API documentation
 
 
 ## [PROBLEM 1] - 150 points
 ## Below is code for one of the simplest possible Flask applications. Edit the code so that once you run this application locally and go to the URL 'http://localhost:5000/class', you see a page that says "Welcome to SI 364!"
 
-from flask import Flask
+from flask import Flask,request	
+import requests 
+import json
+
 app = Flask(__name__)
 app.debug = True
+
 
 @app.route('/')
 def hello_to_you():
     return 'Hello!'
+
+# http://localhost:5000/class returns a page that says "Welcome to SI 364"    
+@app.route('/class')
+def class_page(): 
+	return 'Welcome to SI 364!'
+
+# localhost:5000/movie/<movie_name> returns data regarding the inputted movie
+@app.route('/movie/<movie_name>')
+def show_movie_info(movie_name):
+	r = requests.request("GET","https://itunes.apple.com/search?term={}&entity=movie".format(movie_name))
+	return(r.text)
+
+# localhost:5000/question displays a page with a form asking for the user's favorite number
+@app.route('/question')
+def see_form():
+	formstring = """<br>
+	    <form action="/result" method='GET'>
+		What's your favorite number? : <input type="text" name="phrase"> <br>
+		<br><input type="submit" value="Submit">"""
+	return formstring
+
+# After submitting a number into the form, users are directed to localhost:5000/result?phrase=<favorite_number> (data is shown in URL because it is a GET request). The users number is doubled and displayed.
+@app.route('/result', methods= ['GET'])
+def show_number():
+	if request.method == 'GET':
+		number = request.args.get('phrase','')
+		double_number = int(number)*2
+		return "Double your favorite number is {}".format(double_number)
+
+# localhost:5000/problem4form displays a page with a form asking for the coordinates and language of the desired forecast
+@app.route('/problem4form')
+def see_form_2():
+	formstring = """ <br>
+		<form action= "/problem4formresults" method="GET">
+		Enter your location's latitude: <input type='text' name= 'lat'> 
+		<br>
+		Enter your location's longitude: <input type='text' name= 'long'>
+		<br>
+		Choose a language (select one):
+		<br>
+		<input type="checkbox" name="English" value="en"> English<br>
+  		<input type="checkbox" name="Spanish" value="es"> Spanish<br>
+  		<input type="checkbox" name="French" value="fr"> French
+ 		<input type="submit" value="Submit">
+ 		</form>"""
+	return formstring
+
+# After completing the form, users are directed to localhost:5000/problem4results?<latitude>&<longitude>&<language> and displays forecast information from DarkSKy API
+@app.route('/problem4formresults')
+def show_forecast():
+	key = '03e583150f31cf38f650dba27e3c3dab'
+	latitude = request.args.get('lat','')
+	longitude = request.args.get('long','')
+	url = 'https://api.darksky.net/forecast/{}/{},{}?exlude=minutely,hourly,daily,alerts,flags'.format(key,latitude,longitude)
+	forecast = requests.request('GET',url)
+	forecast_info = json.loads(forecast.text)
+	forecast_summary = forecast_info['currently']['summary']
+	precip_prob = forecast_info['currently']['precipProbability']
+	temperature = forecast_info['currently']['temperature']
+	return "Forecast of location, coordinates ({},{})<br>Forecast Summary: {}<br> Probaility of Precipitation: {}<br>Temperature: {}".format(latitude,longitude,forecast_summary,precip_prob,temperature)
 
 
 if __name__ == '__main__':
